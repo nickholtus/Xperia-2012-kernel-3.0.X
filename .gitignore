@@ -1,0 +1,4 @@
+zImage
+kernel.elf
+kernel-unsigned.elf
+ramdisk.img
