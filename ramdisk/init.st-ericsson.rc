@@ -5,11 +5,11 @@ on early-fs
     exec /sbin/grabramdump
 
 on post-fs
-    mkdir /data/idd 0755 idd idd
-    exec /sbin/resize2fs /dev/block/mmcblk0p8
-    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
-    chown idd idd /data/idd
-    chmod 0755 /data/idd
+#    mkdir /data/idd 0755 idd idd
+#    exec /sbin/resize2fs /dev/block/mmcblk0p8
+#    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
+#    chown idd idd /data/idd
+#    chmod 0755 /data/idd
     mkdir /data/tombstones 0755 system system
     mkdir /data/crashsms 0711 system system
     mkdir /data/crashsms/crashes 0755 system system
@@ -41,9 +41,9 @@ on early-boot
     
     
 
-service iddd /system/bin/iddd
-    user idd
-    group idd log
+#service iddd /system/bin/iddd
+#    user idd
+#    group idd log
 
 # Start suntrold
 service suntrold /system/bin/suntrold
