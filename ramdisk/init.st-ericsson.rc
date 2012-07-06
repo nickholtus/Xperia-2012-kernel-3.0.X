@@ -332,7 +332,7 @@ service admsrv /system/bin/logwrapper /system/bin/admsrv
     capability NET_ADMIN NET_RAW SYS_NICE
 
 # Install CW1200 WLAN core driver
-service wlan_core /system/bin/sh /system/etc/wifi/install_wlan_core.sh
+service wlan_core /system/bin/sh /sbin/install_wlan_core.sh
     user root
     oneshot
 
