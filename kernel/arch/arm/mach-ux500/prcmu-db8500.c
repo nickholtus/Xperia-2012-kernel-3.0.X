@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
+#include <linux/mfd/abx500.h>
 
 /*
  * NOTE! Temporary until all users of set_hwacc() are using the regulator
@@ -36,7 +37,7 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include "prcmu-regs-db8500.h"
-#include "prcmu-debug.h"
+#include <mach/prcmu-debug.h>
 #include <mach/prcmu.h>
 #include <mach/db8500-regs.h>
 #include <mach/dbx500-reset-reasons.h>
@@ -274,9 +275,38 @@
 #define WAKEUP_BIT_GPIO8 BIT(31)
 
 /*
- * Communication timeout
+ * Communication timeout (default)
  */
-#define PRCMU_COMM_TOUT msecs_to_jiffies(2000)
+#define PRCMU_DEFAULT_COMM_TOUT msecs_to_jiffies(2000)
+
+/*
+ * Deficated work-queue. Allows prioritizing
+ * the wq's thread which is needed to avoid CPU starvation
+ */
+static struct workqueue_struct *prcmu_comm_wq;
+
+/**
+ * struct db8500_comm - support structure for adaptive prcmu-comm
+ * @tout: prcmu communication timout
+ * @rst_work: delayed work scheduled to restore any temporary prcmu-comm
+ *	timeouts
+ * @lock: mutex
+ * @rst_tout: restore prcmu communication timout to this value
+ */
+struct db8500_comm {
+	unsigned long tout;
+	struct delayed_work rst_work;
+	struct mutex lock;
+	unsigned long rst_tout;
+};
+
+/*
+ * Communication timeout. Can be changed using prcmu_set_comm_timeout() and
+ * void prcmu_temp_set_comm_timeout().
+ */
+static struct db8500_comm prcmu_comm = {
+	.tout = ULONG_MAX,
+};
 
 /*
  * This vector maps irq numbers to the bits in the bit field used in
@@ -589,6 +619,124 @@ void prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
 	val = ((val & ~mask) | (value & mask));
 	writel(val, (_PRCMU_BASE + reg));
 	spin_unlock_irqrestore(&prcmu_lock, flags);
+}
+
+static inline unsigned long prcmu_comm_tout(void)
+{
+	unsigned long tmp;
+	mutex_lock(&prcmu_comm.lock);
+	tmp = prcmu_comm.tout;
+	mutex_unlock(&prcmu_comm.lock);
+	return tmp;
+}
+
+/*
+ * Sets a new default prcmu communication timeout. Timeout will stay permanent
+ * until changed by this same function again or until system shutdown.
+ *
+ * In case of any pending temporary prcmu-comm timeouts, this function will also
+ * terminate these (see prcmu_temp_set_comm_timeout).
+ */
+void prcmu_set_comm_timeout(unsigned long timeout_mS)
+{
+	cancel_delayed_work_sync(&prcmu_comm.rst_work);
+
+	mutex_lock(&prcmu_comm.lock);
+	prcmu_comm.tout = msecs_to_jiffies(timeout_mS);
+	mutex_unlock(&prcmu_comm.lock);
+	printk(KERN_INFO "[%s] changed PRCMU comm timeout: %lu\n",
+		__func__, prcmu_comm.tout);
+}
+
+/*
+ * PRCMU communication timeout will be changed temporarily. After a certain
+ * time controlled by the validfor_mS argument, it will automatically fall
+ * back to it's last default value again. If another thread decide to
+ * temporary alter the timeout while a validfor period is still pending, the
+ * first will be cancelled and the last will take over.
+ */
+void prcmu_temp_set_comm_timeout(unsigned long timeout_mS,
+	unsigned long validfor_mS)
+{
+	int wq_active;
+
+	wq_active = cancel_delayed_work_sync(&prcmu_comm.rst_work);
+
+	mutex_lock(&prcmu_comm.lock);
+	if (!wq_active) {
+		/* If another work was allready stacked-up, this makes sure only
+		 * the firsts work's restore-value is used */
+		prcmu_comm.rst_tout = prcmu_comm.tout;
+	}
+	prcmu_comm.tout = msecs_to_jiffies(timeout_mS);
+	mutex_unlock(&prcmu_comm.lock);
+
+	schedule_delayed_work(&prcmu_comm.rst_work,
+		msecs_to_jiffies(validfor_mS));
+
+	printk(KERN_INFO "[%s] changed PRCMU comm timeout: %lu(%lu)\n",
+		__func__, prcmu_comm.tout, prcmu_comm.rst_tout);
+}
+
+/*
+ * Deferred work that will restore prcmu-comm timeout to the last default
+ */
+static void restore_comm_tout_work(struct work_struct *work)
+{
+	mutex_lock(&prcmu_comm.lock);
+	prcmu_comm.tout = prcmu_comm.rst_tout;
+
+	mutex_unlock(&prcmu_comm.lock);
+	printk(KERN_INFO "[%s] restored PRCMU comm timeout: %lu(%lu)\n",
+		__func__, prcmu_comm.tout, prcmu_comm.rst_tout);
+}
+
+/*
+ * Return task_struct for the first process or thread matched by name
+ * @name: Name to search for
+ * @returns: task_struct or NULL if not found.
+ */
+static struct task_struct *find_ktask_by_name(char *name)
+{
+	struct task_struct *p, *t, *ret = NULL;
+	for_each_process(p)  {
+		t = p;
+		do {
+			/* Kernel threads do not have resources. Save some time
+			 * by only considering these.
+			 */
+			if ((t->mm == NULL)) {
+				if (strncmp(name,  t->comm, TASK_COMM_LEN) == 0)
+					ret = t;
+			}
+			if (ret != NULL)
+				break;
+
+		} while_each_thread(p, t);
+		if (ret != NULL)
+			break;
+	}
+	return ret;
+}
+
+/*
+ * Dump AB8500 registers, PRCMU registers and PRCMU data memory
+ * on critical errors.
+ */
+static void db8500_prcmu_debug_dump(const char *func,
+				bool dump_prcmu, bool dump_abb)
+{
+	printk(KERN_DEBUG"%s: timeout\n", func);
+
+	/* Dump AB8500 registers */
+	if (dump_abb)
+		abx500_dump_all_banks();
+
+	/* Dump prcmu registers and data memory */
+	if (dump_prcmu) {
+		prcmu_debug_dump_regs();
+		prcmu_debug_dump_data_mem();
+	}
 }
 
 bool prcmu_has_arm_maxopp(void)
@@ -1295,11 +1443,13 @@ int prcmu_set_epod(u16 epod_id, u8 epod_state)
 	 * This is expected to change when the firmware is updated.
 	 */
 	if (!wait_for_completion_timeout(&mb2_transfer.work,
-			PRCMU_COMM_TOUT)) {
+			prcmu_comm_tout())) {
 		pr_err("prcmu: %s timed out waiting for a reply.\n",
 			__func__);
-		BUG();
+
 		r = -EIO;
+		db8500_prcmu_debug_dump(__func__, true, true);
+		BUG();
 		goto unlock_and_return;
 	}
 
@@ -1390,11 +1540,12 @@ static int request_sysclk(bool enable)
 	 * SysClk, and it succeeds.
 	 */
 	if (enable && !wait_for_completion_timeout(&mb3_transfer.sysclk_work,
-			PRCMU_COMM_TOUT)) {
+			prcmu_comm_tout())) {
 		pr_err("prcmu: %s timed out waiting for a reply.\n",
 			__func__);
-		BUG();
+		db8500_prcmu_debug_dump(__func__, true, true);
 		r = -EIO;
+		BUG();
 	}
 
 	mutex_unlock(&mb3_transfer.sysclk_lock);
@@ -2168,11 +2319,12 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 	writel(MBOX_BIT(5), (_PRCMU_BASE + PRCM_MBOX_CPU_SET));
 
 	if (!wait_for_completion_timeout(&mb5_transfer.work,
-				PRCMU_COMM_TOUT)) {
+				prcmu_comm_tout())) {
 		pr_err("prcmu: %s timed out waiting for a reply.\n",
 			__func__);
-		BUG();
 		r = -EIO;
+		db8500_prcmu_debug_dump(__func__, true, false);
+		BUG();
 	} else {
 		r = ((mb5_transfer.ack.status == I2C_RD_OK) ? 0 : -EIO);
 	}
@@ -2215,11 +2367,12 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	writel(MBOX_BIT(5), (_PRCMU_BASE + PRCM_MBOX_CPU_SET));
 
 	if (!wait_for_completion_timeout(&mb5_transfer.work,
-				PRCMU_COMM_TOUT)) {
+				prcmu_comm_tout())) {
 		pr_err("prcmu: %s timed out waiting for a reply.\n",
 			__func__);
-		BUG();
 		r = -EIO;
+		db8500_prcmu_debug_dump(__func__, true, false);
+		BUG();
 	} else {
 		r = ((mb5_transfer.ack.status == I2C_WR_OK) ? 0 : -EIO);
 	}
@@ -2258,9 +2411,11 @@ void prcmu_ac_wake_req(void)
 	writel(val, (_PRCMU_BASE + PRCM_HOSTACCESS_REQ));
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
-			msecs_to_jiffies(5000)))
+					 msecs_to_jiffies(5000))) {
+		db8500_prcmu_debug_dump(__func__, true, true);
 		panic("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
+	}
 
 unlock_and_return:
 	mutex_unlock(&mb0_transfer.ac_wake_lock);
@@ -2285,6 +2440,7 @@ void prcmu_ac_sleep_req()
 
 	if (!wait_for_completion_timeout(&mb0_transfer.ac_wake_work,
 			msecs_to_jiffies(5000))) {
+		db8500_prcmu_debug_dump(__func__, true, true);
 		panic("prcmu: %s timed out (5 s) waiting for a reply.\n",
 			__func__);
 	}
@@ -2558,11 +2714,14 @@ static irqreturn_t prcmu_irq_thread_fn(int irq, void *data)
 {
 	static struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 	static int a = 0;
+	unsigned int current_rt_priority = current->rt_priority;
 
-        if (!a) {
+	if (!a || (current_rt_priority != MAX_RT_PRIO-1)) {
 		sched_setscheduler(current, SCHED_FIFO, &param);
 		a = 1;
-		printk(KERN_INFO "%s:change my priority\n", __func__);
+		printk(KERN_INFO "%s:change my priority (%u->%u)\n", __func__,
+			current_rt_priority,
+			current->rt_priority);
 	}
 
 	ack_dbb_wakeup();
@@ -2590,8 +2749,16 @@ static void prcmu_irq_mask(unsigned int irq)
 
 	spin_unlock_irqrestore(&mb0_transfer.dbb_irqs_lock, flags);
 
-	if (irq != IRQ_PRCMU_CA_SLEEP)
-		schedule_work(&mb0_transfer.mask_work);
+	if (irq != IRQ_PRCMU_CA_SLEEP) {
+		if (prcmu_comm_wq) {
+			queue_work(prcmu_comm_wq, &mb0_transfer.mask_work);
+		} else {
+			printk(KERN_WARNING "%s: "
+				"Schedule work on system wq\n",
+				__func__);
+			schedule_work(&mb0_transfer.mask_work);
+		}
+	}
 }
 
 static void prcmu_irq_unmask(unsigned int irq)
@@ -2604,8 +2771,16 @@ static void prcmu_irq_unmask(unsigned int irq)
 
 	spin_unlock_irqrestore(&mb0_transfer.dbb_irqs_lock, flags);
 
-	if (irq != IRQ_PRCMU_CA_SLEEP)
-		schedule_work(&mb0_transfer.mask_work);
+	if (irq != IRQ_PRCMU_CA_SLEEP) {
+		if (prcmu_comm_wq) {
+			queue_work(prcmu_comm_wq, &mb0_transfer.mask_work);
+		} else {
+			printk(KERN_WARNING "%s: "
+				"Schedule work on system wq\n",
+				__func__);
+			schedule_work(&mb0_transfer.mask_work);
+		}
+	}
 }
 
 static void noop(unsigned int irq)
@@ -2660,6 +2835,13 @@ void __init prcmu_early_init(void)
 
 	INIT_WORK(&mb0_transfer.mask_work, prcmu_mask_work);
 
+	prcmu_comm.tout = PRCMU_DEFAULT_COMM_TOUT;
+	prcmu_comm.rst_tout = PRCMU_DEFAULT_COMM_TOUT;
+	mutex_init(&prcmu_comm.lock);
+
+	INIT_DELAYED_WORK_DEFERRABLE(&prcmu_comm.rst_work,
+		restore_comm_tout_work);
+
 	/* Initalize irqs. */
 	for (i = 0; i < NUM_PRCMU_WAKEUPS; i++) {
 		unsigned int irq;
@@ -2687,10 +2869,37 @@ static void __init init_prcm_registers(void)
  */
 int __init prcmu_init(void)
 {
-	int err = 0;
+	int i, err = 0;
 
 	if (ux500_is_svp())
 		return -ENODEV;
+	/*
+	 * Do not create this as a RT queue per default. Sched principle and
+	 * prio will instead be canged in code according to the problem we
+	 * wish to catch.
+	 */
+	prcmu_comm_wq = create_workqueue("prcmuc_wq");
+	if (!prcmu_comm_wq)
+		return -ENOMEM;
+
+	/*
+	 * Modify comm wq threads. NOTE: Policy & prio might need tuning (TBD)
+	 */
+	for (i = 0; i < num_possible_cpus(); i++) {
+		char tname[80];
+		struct task_struct *ts;
+		static struct sched_param param = {
+			.sched_priority = MAX_RT_PRIO-2
+		};
+
+		snprintf(tname, 80, "prcmuc_wq/%d", i);
+		ts = find_ktask_by_name(tname);
+		if (ts)
+			sched_setscheduler(ts, SCHED_FIFO, &param);
+		else
+			pr_err("prcmu: Can't find prcmu comm qw [%s]\n", tname);
+	}
+
 
 	init_prcm_registers();
 

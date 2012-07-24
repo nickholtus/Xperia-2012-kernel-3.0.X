@@ -11,6 +11,8 @@
 #ifndef __MCDE__H__
 #define __MCDE__H__
 
+#include <linux/device.h>
+
 /* Physical interface types */
 enum mcde_port_type {
 	MCDE_PORTTYPE_DSI = 0,
@@ -430,6 +432,9 @@ int mcde_dsi_dcs_write(struct mcde_chnl_state *chnl,
 int mcde_dsi_dcs_read(struct mcde_chnl_state *chnl,
 		u8 cmd, u32 *data, int *len);
 int mcde_dsi_set_max_pkt_size(struct mcde_chnl_state *chnl);
+
+void mcde_hw_chnl_print(struct mcde_chnl_state *chnl);
+void mcde_hw_ovly_print(struct mcde_ovly_state *ovly);
 
 /* MCDE */
 

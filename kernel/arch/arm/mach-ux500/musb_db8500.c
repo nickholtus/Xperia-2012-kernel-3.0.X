@@ -119,6 +119,12 @@ enum stm_musb_states {
 };
 enum stm_musb_states stm_musb_curr_state = USB_IDLE;
 
+/*
+ Flag for ER425908 WA
+*/
+#define IDGND_WA 1
+#define RIDA_WA  0
+
 /* ACA Modification */
 static enum musb_link_status stm_usb_link_curr_state = USB_LINK_NOT_CONFIGURED;
 static enum musb_link_status stm_usb_link_prev_state = USB_LINK_NOT_CONFIGURED;
@@ -1046,12 +1052,24 @@ static void usb_link_status_update_work(struct work_struct *work)
 			stm_musb_curr_state = USB_HOST;
 			usb_device_phy_en(USB_DISABLE);
 			usb_host_phy_en(USB_ENABLE);
+			if (stm_usb_link_curr_state == USB_LINK_HM_IDGND){
+				musb_rid_a_wa(IDGND_WA);
+			}
+			if(stm_usb_link_curr_state == USB_LINK_ACA_RID_A){
+				musb_rid_a_wa(RIDA_WA);
+			}
 			musb_set_session(1);
 			break;
 		case USB_IDLE:
 			/* Change the current state */
 			stm_musb_curr_state = USB_HOST;
 			usb_host_phy_en(USB_ENABLE);
+			if (stm_usb_link_curr_state == USB_LINK_HM_IDGND){
+				musb_rid_a_wa(IDGND_WA);
+			}
+			if(stm_usb_link_curr_state == USB_LINK_ACA_RID_A){
+				musb_rid_a_wa(RIDA_WA);
+			}
 			musb_set_session(1);
 			break;
 		case USB_HOST:

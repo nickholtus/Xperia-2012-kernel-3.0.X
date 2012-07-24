@@ -68,4 +68,5 @@ enum musb_link_status {
 int musb_phy_en(u8 mode);
 int musb_force_detect(u8 mode);
 int musb_get_abx500_rev(void);
+int musb_rid_a_wa(u8 state);
 

@@ -206,6 +206,9 @@ int prcmu_load_a9wdog(u8 id, u32 val);
 u32 prcmu_read(unsigned int reg);
 void prcmu_write(unsigned int reg, u32 value);
 void prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
+void prcmu_set_comm_timeout(unsigned long timeout_mS);
+void prcmu_temp_set_comm_timeout(unsigned long timeout_mS,
+	unsigned long validfor_mS);
 
 #else /* !CONFIG_U8500_PRCMU */
 
@@ -294,6 +297,15 @@ static inline void prcmu_write(unsigned int reg, u32 value)
 }
 
 static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
+{
+}
+
+static inline void prcmu_set_comm_timeout(unsigned long comm_tout)
+{
+}
+
+void prcmu_temp_set_comm_timeout(unsigned long timeout,
+	unsigned long validfor)
 {
 }
 

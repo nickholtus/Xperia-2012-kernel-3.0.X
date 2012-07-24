@@ -221,4 +221,10 @@ extern int __devexit ab8500_exit(struct ab8500 *ab8500);
 int __deprecated ab8500_write(u8 block, u32 adr, u8 data);
 int __deprecated ab8500_read(u8 block, u32 adr);
 
+#ifdef CONFIG_AB8500_DEBUG
+void ab8500_dump_all_banks(struct device *dev);
+#else
+static inline void ab8500_dump_all_banks(struct device *dev) {}
+#endif
+
 #endif /* MFD_AB8500_H */

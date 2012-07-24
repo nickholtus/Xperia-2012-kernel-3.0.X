@@ -124,7 +124,16 @@ extern const struct panel r61408_dsi_seiko_9387_no_rev;
 #ifdef CONFIG_MCDE_DISPLAY_R61529_DSI_SEIKO_RJ248
 extern const struct panel r61529_dsi_seiko_rev35721A;
 extern const struct panel r61529_dsi_seiko_alternative_rev35721A;
+extern const struct panel r61529_dsi_seiko_rev35721B;
+extern const struct panel r61529_dsi_seiko_rev35721C;
+extern const struct panel r61529_dsi_seiko_rev35721D;
+extern const struct panel r61529_dsi_seiko_rev357201;
 #endif
+
+#ifdef CONFIG_MCDE_DISPLAY_R61529_DSI_HITACHI_TX09D115VM
+extern const struct panel r61529_dsi_hitachi_5210_no_rev;
+#endif
+
 #ifdef CONFIG_MCDE_DISPLAY_OTM9601_DSI_SONY_ACX438AKM
 extern const struct panel otm9601_dsi_sony_acx438akm_rev23841A01;
 extern const struct panel otm9601_dsi_sony_acx438akm_2384_no_rev;
@@ -142,6 +151,8 @@ extern const struct panel r61408_dsi_samsung_rev04251A01;
 #ifdef CONFIG_DEBUG_FS
 extern void panel_create_debugfs(struct mcde_display_device *ddev);
 extern void panel_remove_debugfs(struct mcde_display_device *ddev);
+int panel_execute_cmd_extern(struct panel_device *dev,
+						const struct panel_reg *preg);
 #endif
 
 #endif

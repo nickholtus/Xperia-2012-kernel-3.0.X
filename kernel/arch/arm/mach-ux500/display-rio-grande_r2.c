@@ -32,6 +32,13 @@ static const struct panel *panels[] = {
 #ifdef CONFIG_MCDE_DISPLAY_R61529_DSI_SEIKO_RJ248
 	&r61529_dsi_seiko_rev35721A,
 	&r61529_dsi_seiko_alternative_rev35721A,
+	&r61529_dsi_seiko_rev35721B,
+	&r61529_dsi_seiko_rev35721C,
+	&r61529_dsi_seiko_rev35721D,
+	&r61529_dsi_seiko_rev357201,
+#endif
+#ifdef CONFIG_MCDE_DISPLAY_R61529_DSI_HITACHI_TX09D115VM
+	&r61529_dsi_hitachi_5210_no_rev,
 #endif
 #ifdef CONFIG_MCDE_DISPLAY_OTM9601_DSI_SONY_ACX438AKM
 	&otm9601_dsi_sony_acx438akm_rev23841A01,

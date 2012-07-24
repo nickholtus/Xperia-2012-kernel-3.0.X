@@ -19,28 +19,28 @@ struct as3677_platform_data as3677_pdata = {
 	.leds[0] = {
 		.name = "lcd-backlight",
 		.on_charge_pump = 0,
-		.max_current_uA = 25500,
-		.startup_current_uA = 25500,
+		.max_current_uA = 20000,
+		.startup_current_uA = 20000,
 	},
 	.leds[2] = {
 		.name = "button-backlight",
 		.on_charge_pump = 1,
-		.max_current_uA = 25500,
+		.max_current_uA = 10000,
 	},
 	.leds[3] = {
 		.name = "red",
 		.on_charge_pump = 1,
-		.max_current_uA = 25500,
+		.max_current_uA = 5000,
 	},
 	.leds[4] = {
 		.name = "green",
 		.on_charge_pump = 1,
-		.max_current_uA = 25500,
+		.max_current_uA = 5000,
 	},
 	.leds[5] = {
 		.name = "blue",
 		.on_charge_pump = 1,
-		.max_current_uA = 25500,
+		.max_current_uA = 5000,
 	}
 };
 #endif

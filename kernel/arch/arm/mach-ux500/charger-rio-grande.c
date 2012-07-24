@@ -17,4 +17,5 @@ struct device_data device_data = {
 	.charge_full_design = 1500, /* C */
 	.normal_cur_lvl = 1050, /* 0.7C */
 	.termination_curr = 75, /* C/20 */
+	.lowbat_threshold = 3350,
 };

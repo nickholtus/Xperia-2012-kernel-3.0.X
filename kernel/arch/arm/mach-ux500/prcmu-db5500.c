@@ -26,7 +26,7 @@
 #include <mach/prcmu.h>
 #include <mach/db5500-regs.h>
 
-#include "prcmu-debug.h"
+#include <mach/prcmu-debug.h>
 #include "prcmu-regs-db5500.h"
 
 #define PRCMU_FW_VERSION_OFFSET 0xA4

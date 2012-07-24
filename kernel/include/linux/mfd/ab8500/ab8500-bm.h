@@ -22,6 +22,7 @@
  * Bank : 0x5
  */
 #define AB8500_USB_LINE_STAT_REG	0x80
+#define AB8500_USB_LINE_CTRL2_REG	0x82
 
 /*
  * Charger / status register offfsets
@@ -285,6 +286,7 @@ struct ab8500_fg;
  * if not specified
  * @recovery_sleep_timer:	Time between measurements while recovering
  * @recovery_total_time:	Total recovery time
+ * @bypass_recovery_percent:	min passed SOC in recover to force SOC update
  * @init_timer:			Measurement interval during startup
  * @init_discard_time:		Time we discard voltage measurement at startup
  * @init_total_time:		Total init time during startup
@@ -293,7 +295,6 @@ struct ab8500_fg;
  * @accu_high_curr:		FG accumulation time in high current mode
  * @high_curr_threshold:	High current threshold, in mA
  * @high_curr_exceed_thr:	Exceeded high_curr_threshold in percent
- * @lowbat_threshold:		Low battery threshold, in mV
  * @maint_thres			This is the threshold where we stop reporting
  *				battery full while in maintenance, in per cent
  * @user_cap_limit		Capacity reported from user must be within this
@@ -303,6 +304,7 @@ struct ab8500_fg;
 struct ab8500_fg_parameters {
 	int recovery_sleep_timer;
 	int recovery_total_time;
+	int bypass_recovery_percent;
 	int init_timer;
 	int init_discard_time;
 	int init_total_time;
@@ -311,7 +313,6 @@ struct ab8500_fg_parameters {
 	int accu_high_curr;
 	int high_curr_threshold;
 	int high_curr_exceed_thr;
-	int lowbat_threshold;
 	int maint_thres;
 	int user_cap_limit;
 };
@@ -390,6 +391,7 @@ struct battery_type {
 	struct batres_vs_temp *batres_tbl;
 	unsigned int batt_res_offset;
 	unsigned int batt_vbat_offset;
+	int curve_load;
 };
 
 /**
@@ -488,11 +490,15 @@ struct ab8500_bm_data {
  * @normal_cur_lvl:	charger current in normal state in mA
  * @charge_full_design:	Maximum battery capacity in mAh
  * @termination_curr:	battery charging termination current in mA
+ * @lowbat_threshold:	LowBat interrupt voltage threshold in mV
+ * @lowbat_hysteresis:	hysteresis between lowbat voltage and shutdown voltage
  */
 struct device_data {
 	int normal_cur_lvl;
 	int charge_full_design;
 	int termination_curr;
+	int lowbat_threshold;
+	int lowbat_hysteresis;
 };
 
 extern struct device_data device_data;

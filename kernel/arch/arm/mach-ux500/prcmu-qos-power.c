@@ -24,7 +24,7 @@
 #include <mach/prcmu.h>
 
 #include "pm/cpufreq.h"
-#include "prcmu-debug.h"
+#include <mach/prcmu-debug.h>
 
 #define ARM_THRESHOLD_FREQ (400000)
 
