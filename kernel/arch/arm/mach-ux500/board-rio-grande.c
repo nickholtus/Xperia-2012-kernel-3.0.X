@@ -1969,7 +1969,7 @@ static struct spi_board_info u8500_spi_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_CLEARPAD_SPI
 	{
 		.modalias = CLEARPADSPI_NAME,
-		.max_speed_hz = 2 * 1000 * 1000,
+		.max_speed_hz = 3 * 1000 * 1000,
 		.chip_select = 0,
 		.bus_num = SPI023_3_CONTROLLER,
 		.controller_data = &clearpad_chip_info,
@@ -1980,7 +1980,7 @@ static struct spi_board_info u8500_spi_devices[] = {
 	defined(CONFIG_SEMC_GENERIC_RMI4_SPI_ADAPTOR_MODULE)
 	{
 		.modalias = "rmi-spi",
-		.max_speed_hz = 2000000,
+		.max_speed_hz = 3000000,
 		.chip_select = 0,
 		.bus_num = SPI023_3_CONTROLLER,
 		.controller_data = &rmi4_chip_info,
