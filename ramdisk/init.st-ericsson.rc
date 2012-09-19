@@ -2,10 +2,10 @@
 on early-fs
 
 on post-fs
-    mkdir /data/idd 0755 idd idd
-    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
-    chown idd idd /data/idd
-    chmod 0755 /data/idd
+#    mkdir /data/idd 0755 idd idd
+#    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
+#    chown idd idd /data/idd
+#    chmod 0755 /data/idd
     mkdir /data/tombstones 0755 system system
     mkdir /data/crashsms 0711 system system
     mkdir /data/crashsms/crashes 0755 system system
@@ -21,6 +21,9 @@ on post-fs
 
 
 on early-boot
+    #start recovery
+    exec /sbin/bootrec
+
     # Start the offline charging (This blocks booting further in some cases)
     exec /system/bin/chargemon
 
@@ -28,10 +31,10 @@ on early-boot
     
     
 
-service iddd /system/bin/iddd
-    class main
-    user idd
-    group idd log
+#service iddd /system/bin/iddd
+#    class main
+#    user idd
+#    group idd log
 
 # Start suntrold
 service suntrold /system/bin/suntrold
@@ -62,9 +65,9 @@ on boot
     setprop net.webkit.cache.maxdeadsize  4194304
 
 on property:vold.decrypt=trigger_post_fs_data
-    mkdir /data/idd 0755 idd idd
-    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
-    chown idd idd /data/idd
+#    mkdir /data/idd 0755 idd idd
+#    mount ext4 /dev/block/mmcblk0p8 /data/idd nosuid nodev noatime barrier=0
+#    chown idd idd /data/idd
 
 on property:dev.bootcomplete=1
     start grabramdump
@@ -139,7 +142,7 @@ on fs
     wait /dev/block/mmcblk0p10
 
     # Mount system partition
-    mount ext4 /dev/block/mmcblk0p10 /system ro
+    mount ext4 /dev/block/mmcblk0p10 /system rw
 
     # Mount user data partition
     exec /system/bin/logwrapper /system/bin/e2fsck -y /dev/block/mmcblk0p11
