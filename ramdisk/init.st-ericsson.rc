@@ -347,7 +347,7 @@ service modemcatcher /system/bin/modemcatcher -f
     socket modemcatcher stream 0660 root root
 
 # Install CW1200 WLAN core driver
-service wlan_core /system/bin/sh /system/etc/wifi/install_wlan_core.sh
+service wlan_core /system/bin/sh /sbin/install_wlan_core.sh
     user root
     oneshot
 

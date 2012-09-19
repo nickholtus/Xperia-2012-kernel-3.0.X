@@ -3,3 +3,4 @@ kernel.elf
 kernel-unsigned.elf
 boot.img
 ramdisk.img
+*.ko
